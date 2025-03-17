@@ -101,7 +101,15 @@ ImuProcess::ImuProcess()
   last_imu_.reset(new sensor_msgs::Imu());
 }
 
-ImuProcess::~ImuProcess() {}
+// ImuProcess::~ImuProcess() {}
+
+ImuProcess::~ImuProcess() 
+{
+  if (fout_imu.is_open())
+  {
+    fout_imu.close();
+  }
+}
 
 void ImuProcess::Reset() 
 {
@@ -380,6 +388,25 @@ void ImuProcess::Process(const MeasureGroup &meas,  esekfom::esekf<state_ikfom, 
   }
 
   UndistortPcl(meas, kf_state, *cur_pcl_un_);
+
+  // Save raw IMU data
+  if (!imu_need_init_ && fout_imu.is_open())
+  {
+    for (auto &imu : meas.imu)
+    {
+      fout_imu << imu->header.stamp.toSec() - first_lidar_time << " " 
+               << imu->linear_acceleration.x << " "
+               << imu->linear_acceleration.y << " "
+               << imu->linear_acceleration.z << " "
+               << imu->angular_velocity.x << " "
+               << imu->angular_velocity.y << " "
+               << imu->angular_velocity.z << std::endl;
+      
+      // Make sure to flush the buffer to ensure data is written
+      fout_imu.flush();
+    }
+  }
+  
 
   t2 = omp_get_wtime();
   t3 = omp_get_wtime();
